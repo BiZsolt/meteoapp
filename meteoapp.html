@@ -38,10 +38,6 @@
       display: flex;
       overflow: hidden;
     }
-    #sidebar {
-      width: 240px;
-      background-color: #e0e0e0;
-    }
     #main {
       flex: 1;
       display: flex;
@@ -63,6 +59,14 @@
       width: 100% !important;
       height: 100% !important;
     }
+    #video-links {
+      padding: 20px;
+      text-align: center;
+      background: #f0f0f0;
+    }
+    #video-links a {
+      margin: 0 15px;
+    }
   </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -70,11 +74,10 @@
 </head>
 <body>
   <div id="header">
-    <img src="https://via.placeholder.com/60" alt="Logo">
-    <h1><a href="https://www.youtube.com/@SolarTrails" target="_blank">@Solar Trails - solar bikepacking and bike touring</a></h1>
+    <img src="Logo.jpg" alt="Logo">
+    <h1><a href="https://www.youtube.com/@SolarTrails" target="_blank">@SOLAR TRAILS<br>A weather forecast utility for solar bikepacking and bike touring</a></h1>
   </div>
   <div id="content">
-    <div id="sidebar"></div>
     <div id="main">
       <div id="map"></div>
       <div id="chart-container">
@@ -82,6 +85,31 @@
       </div>
     </div>
   </div>
+  <div id="video-links" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+  <div style="position: relative; width: 159px; height: 89px; cursor: pointer;"
+       onclick="this.innerHTML='<iframe width=159 height=89 src=https://www.youtube.com/embed/q54b3_SaQFo?autoplay=1 frameborder=0 allowfullscreen></iframe>';">
+    <img src="https://img.youtube.com/vi/q54b3_SaQFo/hqdefault.jpg" width="159" height="89" alt="Video 1 thumbnail">
+    <img src="https://www.iconpacks.net/icons/2/free-youtube-play-button-icon-2429-thumb.png"
+         style="position: absolute; top: 32%; left: 35%; width: 25px; opacity: 0.8;">
+  </div>
+
+  <div style="position: relative; width: 159px; height: 89px; cursor: pointer;"
+       onclick="this.innerHTML='<iframe width=159 height=89 src=https://www.youtube.com/embed/IoVkusfstOc?autoplay=1 frameborder=0 allowfullscreen></iframe>';">
+    <img src="https://img.youtube.com/vi/IoVkusfstOc/hqdefault.jpg" width="159" height="89" alt="Video 2 thumbnail">
+    <img src="https://www.iconpacks.net/icons/2/free-youtube-play-button-icon-2429-thumb.png"
+         style="position: absolute; top: 32%; left: 35%; width: 25px; opacity: 0.8;">
+  </div>
+
+  <div style="position: relative; width: 159px; height: 89px; cursor: pointer;"
+       onclick="this.innerHTML='<iframe width=159 height=89 src=https://www.youtube.com/embed/mN5t-Yra_Y8?autoplay=1 frameborder=0 allowfullscreen></iframe>';">
+    <img src="https://img.youtube.com/vi/mN5t-Yra_Y8/hqdefault.jpg" width="159" height="89" alt="Video 3 thumbnail">
+    <img src="https://www.iconpacks.net/icons/2/free-youtube-play-button-icon-2429-thumb.png"
+         style="position: absolute; top: 32%; left: 35%; width: 25px; opacity: 0.8;">
+  </div>
+</div>
+
+
+
   <script>
     const defaultCoords = { lat: 47.5, lon: 19.0 };
     const savedCoords = JSON.parse(localStorage.getItem('coords')) || defaultCoords;
