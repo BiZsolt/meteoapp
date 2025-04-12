@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weather Forecast for Solar Travelers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #header {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background-color: #f0f0f0;
+    }
+    #header img {
+      height: 60px;
+      width: 60px;
+      margin-right: 15px;
+    }
+    #header h1 {
+      font-size: 1.5em;
+      margin: 0;
+      flex-grow: 1;
+      text-align: center;
+    }
+    #header a {
+      text-decoration: none;
+      color: black;
+    }
+    #content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 240px;
+      background-color: #e0e0e0;
+    }
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    #map {
+      flex: 1;
+      min-height: 50%;
+    }
+    #chart-container {
+      flex: 1;
+      position: relative;
+    }
+    #chart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="header">
+    <img src="https://via.placeholder.com/60" alt="Logo">
+    <h1><a href="https://www.youtube.com/@SolarTrails" target="_blank">@Solar Trails - solar bikepacking and bike touring</a></h1>
+  </div>
+  <div id="content">
+    <div id="sidebar"></div>
+    <div id="main">
+      <div id="map"></div>
+      <div id="chart-container">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </div>
+  <script>
+    const defaultCoords = { lat: 47.5, lon: 19.0 };
+    const savedCoords = JSON.parse(localStorage.getItem('coords')) || defaultCoords;
+
+    const map = L.map('map').setView([savedCoords.lat, savedCoords.lon], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker = L.marker([savedCoords.lat, savedCoords.lon], { draggable: false }).addTo(map);
+    let chartInstance = null;
+
+    function fetchWeather(lat, lon) {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,cloudcover,precipitation&timezone=auto`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const hours = data.hourly.time;
+          const temps = data.hourly.temperature_2m;
+          const clouds = data.hourly.cloudcover;
+          const precipitation = data.hourly.precipitation;
+
+          const labels = [];
+          const tooltips = [];
+
+          for (let t of hours) {
+            const date = new Date(t);
+            const dayLabel = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth()+1).toString().padStart(2, '0')}, ${date.toLocaleDateString('en-US', { weekday: 'short' })}`;
+            labels.push(dayLabel);
+            tooltips.push(`${date.getHours().toString().padStart(2, '0')}:00`);
+          }
+
+          const ctx = document.getElementById('chart').getContext('2d');
+          if (chartInstance) {
+            chartInstance.destroy();
+          }
+          chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Temperature (°C)',
+                  data: temps,
+                  borderColor: 'red',
+                  yAxisID: 'y'
+                },
+                {
+                  label: 'Cloud Cover (%)',
+                  data: clouds,
+                  borderColor: 'gray',
+                  yAxisID: 'y1'
+                },
+                {
+                  label: 'Precipitation (mm)',
+                  data: precipitation,
+                  borderColor: 'blue',
+                  borderDash: [5, 5],
+                  yAxisID: 'y2'
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                mode: 'nearest',
+                intersect: false
+              },
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    title: function(context) {
+                      return tooltips[context[0].dataIndex];
+                    },
+                    label: function(context) {
+                      return `${context.dataset.label}: ${context.formattedValue}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  ticks: {
+                    maxRotation: 90,
+                    autoSkip: true,
+                    maxTicksLimit: 10
+                  }
+                },
+                y: { type: 'linear', position: 'left' },
+                y1: { type: 'linear', position: 'right', beginAtZero: true },
+                y2: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+              }
+            }
+          });
+        });
+    }
+
+    map.on('click', function(e) {
+      const lat = e.latlng.lat;
+      const lon = e.latlng.lng;
+      marker.setLatLng([lat, lon]);
+      localStorage.setItem('coords', JSON.stringify({ lat, lon }));
+      fetchWeather(lat, lon);
+    });
+
+    fetchWeather(savedCoords.lat, savedCoords.lon);
+  </script>
+</body>
+</html>
