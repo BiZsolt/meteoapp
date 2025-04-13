@@ -59,13 +59,21 @@
       width: 100% !important;
       height: 100% !important;
     }
-    #video-links {
-      padding: 20px;
+    #controls {
+      padding: 10px;
       text-align: center;
       background: #f0f0f0;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
     }
-    #video-links a {
-      margin: 0 15px;
+    #controls button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
   </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -85,34 +93,17 @@
       </div>
     </div>
   </div>
-  <div id="video-links" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-  <div style="position: relative; width: 159px; height: 89px; cursor: pointer;"
-       onclick="this.innerHTML='<iframe width=159 height=89 src=https://www.youtube.com/embed/q54b3_SaQFo?autoplay=1 frameborder=0 allowfullscreen></iframe>';">
-    <img src="https://img.youtube.com/vi/q54b3_SaQFo/hqdefault.jpg" width="159" height="89" alt="Video 1 thumbnail">
-    <img src="https://www.iconpacks.net/icons/2/free-youtube-play-button-icon-2429-thumb.png"
-         style="position: absolute; top: 32%; left: 35%; width: 25px; opacity: 0.8;">
+  <div id="controls">
+    <button onclick="updateChartRange('short')">Short (48h)</button>
+    <button onclick="updateChartRange('long')">Long</button>
   </div>
-
-  <div style="position: relative; width: 159px; height: 89px; cursor: pointer;"
-       onclick="this.innerHTML='<iframe width=159 height=89 src=https://www.youtube.com/embed/IoVkusfstOc?autoplay=1 frameborder=0 allowfullscreen></iframe>';">
-    <img src="https://img.youtube.com/vi/IoVkusfstOc/hqdefault.jpg" width="159" height="89" alt="Video 2 thumbnail">
-    <img src="https://www.iconpacks.net/icons/2/free-youtube-play-button-icon-2429-thumb.png"
-         style="position: absolute; top: 32%; left: 35%; width: 25px; opacity: 0.8;">
-  </div>
-
-  <div style="position: relative; width: 159px; height: 89px; cursor: pointer;"
-       onclick="this.innerHTML='<iframe width=159 height=89 src=https://www.youtube.com/embed/mN5t-Yra_Y8?autoplay=1 frameborder=0 allowfullscreen></iframe>';">
-    <img src="https://img.youtube.com/vi/mN5t-Yra_Y8/hqdefault.jpg" width="159" height="89" alt="Video 3 thumbnail">
-    <img src="https://www.iconpacks.net/icons/2/free-youtube-play-button-icon-2429-thumb.png"
-         style="position: absolute; top: 32%; left: 35%; width: 25px; opacity: 0.8;">
-  </div>
-</div>
-
-
 
   <script>
     const defaultCoords = { lat: 47.5, lon: 19.0 };
     const savedCoords = JSON.parse(localStorage.getItem('coords')) || defaultCoords;
+    let chartInstance = null;
+    let rawData = null;
+    let currentRange = 'long';
 
     const map = L.map('map').setView([savedCoords.lat, savedCoords.lon], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -120,91 +111,136 @@
     }).addTo(map);
 
     let marker = L.marker([savedCoords.lat, savedCoords.lon], { draggable: false }).addTo(map);
-    let chartInstance = null;
+
+    function findSunChargePeriods(cloudData) {
+      const periods = [];
+      let currentStart = null;
+      
+      for (let i = 0; i < cloudData.length; i++) {
+        if (cloudData[i] < 30) {
+          if (currentStart === null) currentStart = i;
+        } else {
+          if (currentStart !== null && (i - currentStart) >= 5) {
+            periods.push({ start: currentStart, end: i - 1 });
+          }
+          currentStart = null;
+        }
+      }
+      
+      if (currentStart !== null && (cloudData.length - currentStart) >= 5) {
+        periods.push({ start: currentStart, end: cloudData.length - 1 });
+      }
+      
+      return periods;
+    }
+
+    function updateChart() {
+      if (!rawData) return;
+
+      const rangeHours = currentRange === 'short' ? 48 : rawData.hourly.time.length;
+      const hours = rawData.hourly.time.slice(0, rangeHours);
+      const temps = rawData.hourly.temperature_2m.slice(0, rangeHours);
+      const clouds = rawData.hourly.cloudcover.slice(0, rangeHours);
+      const precipitation = rawData.hourly.precipitation.slice(0, rangeHours);
+      
+      const sunChargeData = new Array(hours.length).fill(NaN);
+      const sunChargePeriods = findSunChargePeriods(clouds);
+      sunChargePeriods.forEach(period => {
+        for (let i = period.start; i <= period.end; i++) {
+          const date = new Date(hours[i]);
+          const hour = date.getHours();
+          if (hour >= 7 && hour < 19) { // Check if hour is between 7:00 and 19:00
+            sunChargeData[i] = 100;
+          }
+        }
+      });
+
+      const labels = [];
+      const tooltips = [];
+      hours.forEach(t => {
+        const date = new Date(t);
+        labels.push(`${date.getDate().toString().padStart(2, '0')}.${(date.getMonth()+1).toString().padStart(2, '0')}, ${date.toLocaleDateString('en-US', { weekday: 'short' })}`);
+        tooltips.push(`${date.getHours().toString().padStart(2, '0')}:00`);
+      });
+
+      if (chartInstance) chartInstance.destroy();
+      
+      const ctx = document.getElementById('chart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Temperature (°C)',
+              data: temps,
+              borderColor: 'red',
+              yAxisID: 'y'
+            },
+            {
+              label: 'Cloud Cover (%)',
+              data: clouds,
+              borderColor: 'gray',
+              yAxisID: 'y1'
+            },
+            {
+              label: 'Precipitation (mm)',
+              data: precipitation,
+              borderColor: 'blue',
+              borderDash: [5, 5],
+              yAxisID: 'y2'
+            },
+            {
+              label: 'SunCharge',
+              data: sunChargeData,
+              type: 'bar',
+              backgroundColor: 'rgba(255, 255, 0, 0.3)',
+              yAxisID: 'y3',
+              categoryPercentage: 1.0,
+              barPercentage: 1.0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: context => tooltips[context[0].dataIndex],
+                label: context => `${context.dataset.label}: ${context.formattedValue}`
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { maxRotation: 90, autoSkip: true, maxTicksLimit: 10 } },
+            y: { position: 'left' },
+            y1: { position: 'right', beginAtZero: true },
+            y2: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } },
+            y3: {
+              display: false,
+              position: 'left',
+              min: 0,
+              max: 100
+            }
+          }
+        }
+      });
+    }
+
+    function updateChartRange(range) {
+      currentRange = range;
+      updateChart();
+    }
 
     function fetchWeather(lat, lon) {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,cloudcover,precipitation&timezone=auto`;
       fetch(url)
         .then(res => res.json())
         .then(data => {
-          const hours = data.hourly.time;
-          const temps = data.hourly.temperature_2m;
-          const clouds = data.hourly.cloudcover;
-          const precipitation = data.hourly.precipitation;
-
-          const labels = [];
-          const tooltips = [];
-
-          for (let t of hours) {
-            const date = new Date(t);
-            const dayLabel = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth()+1).toString().padStart(2, '0')}, ${date.toLocaleDateString('en-US', { weekday: 'short' })}`;
-            labels.push(dayLabel);
-            tooltips.push(`${date.getHours().toString().padStart(2, '0')}:00`);
-          }
-
-          const ctx = document.getElementById('chart').getContext('2d');
-          if (chartInstance) {
-            chartInstance.destroy();
-          }
-          chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: 'Temperature (°C)',
-                  data: temps,
-                  borderColor: 'red',
-                  yAxisID: 'y'
-                },
-                {
-                  label: 'Cloud Cover (%)',
-                  data: clouds,
-                  borderColor: 'gray',
-                  yAxisID: 'y1'
-                },
-                {
-                  label: 'Precipitation (mm)',
-                  data: precipitation,
-                  borderColor: 'blue',
-                  borderDash: [5, 5],
-                  yAxisID: 'y2'
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              interaction: {
-                mode: 'nearest',
-                intersect: false
-              },
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    title: function(context) {
-                      return tooltips[context[0].dataIndex];
-                    },
-                    label: function(context) {
-                      return `${context.dataset.label}: ${context.formattedValue}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                x: {
-                  ticks: {
-                    maxRotation: 90,
-                    autoSkip: true,
-                    maxTicksLimit: 10
-                  }
-                },
-                y: { type: 'linear', position: 'left' },
-                y1: { type: 'linear', position: 'right', beginAtZero: true },
-                y2: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
-              }
-            }
-          });
+          rawData = data;
+          updateChart();
         });
     }
 
