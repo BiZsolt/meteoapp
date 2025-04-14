@@ -83,8 +83,9 @@
 </head>
 <body>
   <div id="header">
-    
-    <a href="https://www.youtube.com/@SolarTrails" target="_blank"><img src="top_banner03.jpg" alt="@SOLAR TRAILS - weather forecast utility for solar touring"></a>
+    <a href="https://www.youtube.com/@SolarTrails" target="_blank">
+      <img src="top_banner03.jpg" alt="@SOLAR TRAILS - weather forecast utility for solar touring">
+    </a>
   </div>
   <div id="content">
     <div id="main">
@@ -100,10 +101,10 @@
   </div>
 <!-- hitwebcounter Code START -->
 <a href="https://www.hitwebcounter.com" target="_blank">
-<img src="https://hitwebcounter.com/counter/counter.php?page=20359473&style=0007&nbdigits=5&type=page&initCount=0" title="Counter Widget" Alt="Visit counter For Websites"   border="0" /></a>                                    
-                                    
+<img src="https://hitwebcounter.com/counter/counter.php?page=20359473&style=0007&nbdigits=5&type=page&initCount=0" title="Counter Widget" alt="Visit counter For Websites" border="0" /></a>
+
   <script>
-    const defaultCoords = { lat: 47.5, lon: 19.0 };
+    const defaultCoords = { lat: 50.1, lon: 10.4 };
     const savedCoords = JSON.parse(localStorage.getItem('coords')) || defaultCoords;
     let chartInstance = null;
     let rawData = null;
@@ -138,6 +139,35 @@
       return periods;
     }
 
+    // Custom plugin to add vertical lines separating days.
+    const dayDelimiterPlugin = {
+      id: 'dayDelimiterPlugin',
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        const labels = chart.data.labels;
+        if (!labels || labels.length === 0) return;
+        
+        let prevDay = labels[0].split(',')[0];
+        for (let i = 1; i < labels.length; i++) {
+          const currentDay = labels[i].split(',')[0];
+          if (currentDay !== prevDay) {
+            // Draw a vertical line at the tick position for the new day.
+            const x = xAxis.getPixelForTick(i);
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x, chart.chartArea.top);
+            ctx.lineTo(x, chart.chartArea.bottom);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = 'cyan';
+            ctx.stroke();
+            ctx.restore();
+          }
+          prevDay = currentDay;
+        }
+      }
+    };
+
     function updateChart() {
       if (!rawData) return;
 
@@ -163,6 +193,7 @@
       const tooltips = [];
       hours.forEach(t => {
         const date = new Date(t);
+        // Label format: "DD.MM, Day"
         labels.push(`${date.getDate().toString().padStart(2, '0')}.${(date.getMonth()+1).toString().padStart(2, '0')}, ${date.toLocaleDateString('en-US', { weekday: 'short' })}`);
         tooltips.push(`${date.getHours().toString().padStart(2, '0')}:00`);
       });
@@ -179,19 +210,21 @@
               label: 'Temperature (°C)',
               data: temps,
               borderColor: 'red',
-              yAxisID: 'y'
+              yAxisID: 'y',
+              tension: 0.3
             },
             {
               label: 'Cloud Cover (%)',
               data: clouds,
               borderColor: 'gray',
-              yAxisID: 'y1'
+              yAxisID: 'y1',
+              tension: 0.3
             },
             {
               label: 'Precipitation (mm)',
               data: precipitation,
-              borderColor: 'blue',
-              borderDash: [5, 5],
+              type: 'bar',
+              backgroundColor: 'blue',
               yAxisID: 'y2'
             },
             {
@@ -218,18 +251,16 @@
             }
           },
           scales: {
-            x: { ticks: { maxRotation: 90, autoSkip: true, maxTicksLimit: 10 } },
+            x: {
+              ticks: { maxRotation: 90, autoSkip: true, maxTicksLimit: 10 }
+            },
             y: { position: 'left' },
             y1: { position: 'right', beginAtZero: true },
             y2: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } },
-            y3: {
-              display: false,
-              position: 'left',
-              min: 0,
-              max: 100
-            }
+            y3: { display: false, position: 'left', min: 0, max: 100 }
           }
-        }
+        },
+        plugins: [dayDelimiterPlugin]
       });
     }
 
