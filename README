@@ -1,0 +1,31 @@
+# MeteoApp
+
+A simple, self-contained weather web app built with HTML, JavaScript, and CSS.
+
+## 🔗 Live Demo
+
+[Click here to run the app](https://bizsolt.github.io/meteoapp/meteoapp.html)
+
+## 📁 Source Code
+
+This repository contains the full source code. The entire app is packed into a single file:
+
+- [`meteoapp.html`](meteoapp.html) — All HTML, JavaScript, and CSS are embedded in this one file.
+- There are no external libraries or dependencies.
+
+You can open the file directly in a browser, or deploy it using GitHub Pages as shown above.
+
+## 🧩 Features
+
+- Real-time weather data via public API
+- Minimalistic, mobile-friendly UI
+- Fully offline-capable with a single file
+
+## 🛠️ Notes
+
+- This is a lightweight project intended as a demonstration or utility.
+- Feel free to fork or modify the code.
+
+---
+
+© BiZsolt
